@@ -8,9 +8,15 @@ import requests
 import pandas as pd
 import os
 import json
+import re
 import pymongo
-output_file='casediary.csv'
+import pymongo
+from pymongo import MongoClient
+#manu mongodb testing code 
+client = MongoClient('mongodb://localhost:27017')
+db = client.pymongo_scdetails
 
+output_file='casediary.csv'
 diary_results={}
 diary_earl_court_details={}
 diary_taged={}
@@ -74,6 +80,12 @@ def fetch_sc_hidden_internal_diary_num(soup):
     hd_diary_val=soup.find("input",type='hidden',id='diaryno')['value']
     return hd_diary_val;
 
+def initialize_diary_case_details(ta_master_court,ta_diary_num,ta_diary_year,ta_hdn_diary):
+
+    diary_results['ta_master_court']='SC'
+    diary_results['ta_diary_num']=diary_num 
+    diary_results['ta_diary_year']=diary_year 
+   # diary_results['ta_hdn_diary']=hdn_sc_diary_num
 
 def get_indexing_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num):
     # TO DO Write the logic here
@@ -624,8 +636,35 @@ def get_data(soup):
                     title = None
 
                 return title
+
+# function to read records from mongo db
+def Fetch_all_from_mongo():
+    try:
+        mdccasedetails=db.casedetail.find()
+        print ('\n All data from case Database \n')
+        for cd in mdccasedetails:
+            print( cd)
+
+    except :
+        print( str(e))
         ## find data 
 def case_details_by_diary(url,headers,cookies,diary_num,diary_year):
+    cookies = {
+        'has_js': '1',
+        'PHPSESSID': '8j1pgblhj22d21rejvdinvehg1',
+    }
+
+    headers = {
+        'Origin': 'https://sci.nic.in',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Accept': '*/*',
+        'Referer': 'https://sci.nic.in/case-status',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Connection': 'keep-alive',
+    }
     data = [
       ('d_no', diary_num),
       ('d_yr', diary_year),
@@ -634,105 +673,120 @@ def case_details_by_diary(url,headers,cookies,diary_num,diary_year):
         res = requests.post('https://sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 30))
         res.raise_for_status()
     except requests.HTTPError as e:
-        logging.warning('delhi HC Display return non-200 status code')
+        logging.warning('SC case details non-200 status code')
         raise e
     except requests.RequestException as e:
-        logging.warning('Issue retrieving HC results page')
+        logging.warning('Issue retrieving SC case details results page')
         raise e
     except ConnectionError as e:
         raise e
     else:
         return res
 
-cookies = {
-    'has_js': '1',
-    'PHPSESSID': '8j1pgblhj22d21rejvdinvehg1',
-}
 
-headers = {
-    'Origin': 'https://sci.nic.in',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36',
-    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-    'Accept': '*/*',
-    'Referer': 'https://sci.nic.in/case-status',
-    'X-Requested-With': 'XMLHttpRequest',
-    'Connection': 'keep-alive',
-}
-diary_detail_url='https://sci.nic.in/php/case_status/case_status_process.php'
+# Function to update record to mongo db
+def updatemongotest():
+    try:
+        criteria = '123'
+        ta_diary_year = '2017'
+        
+        db.casedetail.update_one(
+            {"ta_diary_num": criteria},
+            {
+            "$set": {
+                "ta_diary_year":'2019',
+            }
+            }
+        )
+        print( "Records updated successfully")    
+    
+    except:
+        print( str(e))
+
+def fetch_diary_case_details(court_code,diary_num,diary_year,hdn_sc_diary_num):
+    diary_detail_url='https://sci.nic.in/php/case_status/case_status_process.php'
+    result= case_details_by_diary(diary_detail_url,headers,cookies,diary_num,diary_year)
+    ## TO DO --when we organize the class the result should be taken care for every thread and if result is 200 then only it should call supporting details
+    if result and result.status_code == 200:
+        ta_master_court='sc'
+        initialize_diary_case_details(ta_master_court,diary_num,diary_year,ta_hdn_diary)
+    # handle if case does not exist 'case not found'
+        soup=get_soup(result.content)
+        case_dne=soup.body.findAll(text='Case Not Found')
+        if case_dne:
+            diary_results['diary_case_status']='dne'
+            print("case does not exist")
+        else:
+            print("printing case details")
+            diary_results['diary_case_status']='exist'
+            case_heading_details =soup.find_all("h5")
+            case_diary_data=CaseDetails(diary_num,diary_year)
+            for item in case_heading_details:
+                        if("Diary No."in item.text):
+                            case_diary_data.diary_num=item.text
+                            diary_results['ta_diary_num_details']=item.text
+                        else:
+                            case_diary_data.petetinor=item.text
+                            diary_results['ta_diary_heading']=item.text
+            df_pd=pd.read_html(result.content,header=None)
+            df1=df_pd[0]
+            # initialize the diary dictionary with own dataset 
+            #TO-DO - first identify if the scrapped ressults are valid or not , for example validate if it contains proper values or not 
+
+            for index,row in df1.iterrows():
+              # remove . from the key as mongo does not allows it
+              diary_results[re.sub('[.]+', '', row[0])]=row[1]
+              #print(row[0], row[1])
+            hdn_sc_diary_num=fetch_sc_hidden_internal_diary_num(soup)
+            diary_results['ta_hdn_diary_num']=hdn_sc_diary_num
+            print (diary_results)
+            return 'success'
+            #print(diary_results)
+            #for key,val in diary_results.items():
+            # print(key,'====',val )
+            # #print(item)
+            #print("ok ")
+    else:
+        return 'fail'
+        print("BAD Response")
 
 
+court_code='sc'
 diary_num='123'
 diary_year='2018'
-response= case_details_by_diary(diary_detail_url,headers,cookies,diary_num,diary_year)
-print(response)
-result = response.result()
-## TO DO --when we organize the class the result should be taken care for every thread and if result is 200 then only it should call supporting details
-if result and result.status_code == 200:
-    print("ok ")
+ta_hdn_diary=prepare_sc_hidden_internal_diary_num(diary_num,diary_year)
+ret_code=fetch_diary_case_details(court_code,diary_num,diary_year,hdn_sc_diary_num)
+print (ret_code)
+if(ret_code is 'success'):
+    print('success in retriving the result insert it into mogodb')
+    try:
+        mdccasedetails=db.casedetail
+        Dboresult=mdccasedetails.insert_one(diary_results)
+        print('One casedetail: {0}'.format(Dboresult.inserted_id))
+    except:
+        print('mongo db error')
+        
 else:
-   print("BAD Response")
-# handle if case does not exist 'case not found'
-soup=get_soup(response.content)
-case_dne=soup.body.findAll(text='Case Not Found')
-if case_dne:
-    print("case does not exist")
-else:
-    print("printing case details")
-    case_heading_details =soup.find_all("h5")
-    case_diary_data=CaseDetails(diary_num,diary_year)
-    for item in case_heading_details:
-                if("Diary No."in item.text):
-                    case_diary_data.diary_num=item.text
-                    diary_results['ta_diary_num']=item.text
-                else:
-                    case_diary_data.petetinor=item.text
-                    diary_results['ta_diary_heading']=item.text
-    df_pd=pd.read_html(response.content,header=None)
-    print(df_pd[0])
-
-# try table extraction 
-#results = {}
-#for row in soup.findAll('tr'):
-#    aux = row.findAll('td')
-#    results[aux[0].string] = aux[1].string
-df1=df_pd[0]
-# initialize the diary dictionary with own dataset 
-#TO-DO - first identify if the scrapped ressults are valid or not , for example validate if it contains proper values or not 
-diary_results['ta_master_court']='SC'
-diary_results['ta_diary_num']=diary_num 
-diary_results['ta_diary_year']=diary_year 
-diary_results['ta_hdn_diary']=hdn_sc_diary_num
-for index,row in df1.iterrows():
-  diary_results[row[0]]=row[1]
-  #print(row[0], row[1])
-print (diary_results)
-
-for key,val in diary_results.items():
- print(key,'====',val )
- #print(item)
-
-
-####### gettting extended scripts for more details about diary
-hdn_sc_diary_num=fetch_sc_hidden_internal_diary_num(soup)
-diary_results['ta_hdn_diary_num']=hdn_sc_diary_num
-print(hdn_sc_diary_num)
-### getindexing details
-#ret_code=get_indexing_by_diary('sc',hdn_sc_diary_num,diary_year,hdn_sc_diary_num)
-court_code='sc'
-ret_code=get_EarlierCourtDetails_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
-print('earlier court details'+ret_code)
-print(diary_earl_court_details)
-ret_code=get_TaggedMatter_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
-print('tagged matter'+ret_code)
-print(diary_results)
-ret_code=get_ListingDates_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
-print('listing details'+ret_code)
-print(diary_results)
-print(diary_listing_date)
+    print('Fail --case details -retriving  ')
 
 
 
+Fetch_all_from_mongo()
+updatemongotest()
+Fetch_all_from_mongo()
+######## gettting extended scripts for more details about diary
 
-csv_output_test('','')
+##### getindexing details
+###ret_code=get_indexing_by_diary('sc',hdn_sc_diary_num,diary_year,hdn_sc_diary_num)
+##court_code='sc'
+##ret_code=get_EarlierCourtDetails_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
+##print('earlier court details'+ret_code)
+##print(diary_earl_court_details)
+##ret_code=get_TaggedMatter_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
+##print('tagged matter'+ret_code)
+##print(diary_results)
+##ret_code=get_ListingDates_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
+##print('listing details'+ret_code)
+##print(diary_results)
+##print(diary_listing_date)
+
