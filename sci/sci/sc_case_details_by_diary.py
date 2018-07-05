@@ -14,7 +14,7 @@ import pymongo
 from pymongo import MongoClient
 #manu mongodb testing code 
 client = MongoClient('mongodb://localhost:27017')
-db = client.pymongo_scdetails
+db = client.mongo_scdetails
 
 output_file='casediary.csv'
 diary_results={}
@@ -52,7 +52,7 @@ def Call_script_diary(url,headers,cookies,hdn_diarynum):
       ('diaryno', hdn_diarynum),
     ]
     try:
-        res = requests.post(url, headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 30))
+        res = requests.post(url, headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 60))
         res.raise_for_status()
     except requests.HTTPError as e:
         logging.warning('SC return non-200 status code')
@@ -83,8 +83,8 @@ def fetch_sc_hidden_internal_diary_num(soup):
 def initialize_diary_case_details(ta_master_court,ta_diary_num,ta_diary_year,ta_hdn_diary):
 
     diary_results['ta_master_court']='SC'
-    diary_results['ta_diary_num']=diary_num 
-    diary_results['ta_diary_year']=diary_year 
+    diary_results['ta_diary_num']=ta_diary_num 
+    diary_results['ta_diary_year']=ta_diary_year 
    # diary_results['ta_hdn_diary']=hdn_sc_diary_num
 
 def get_indexing_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num):
@@ -646,9 +646,9 @@ def Fetch_all_from_mongo():
             print( cd)
 
     except :
-        print( str(e))
+        raise
         ## find data 
-def case_details_by_diary(url,headers,cookies,diary_num,diary_year):
+def case_details_by_diary(url,diary_num,diary_year):
     cookies = {
         'has_js': '1',
         'PHPSESSID': '8j1pgblhj22d21rejvdinvehg1',
@@ -683,7 +683,25 @@ def case_details_by_diary(url,headers,cookies,diary_num,diary_year):
     else:
         return res
 
-
+#helperfunction for testing 
+def updatemanymongo():
+    try:
+        criteria = '123'
+        ta_diary_year = '2017'
+        
+        db.casedetail.update_many(
+            {"ta_diary_num": criteria},
+            {
+            "$set": {
+                "ta_diary_year":'2019',
+            },
+            
+            }
+        )
+        print( "Records updated successfully")    
+    
+    except:
+        raise
 # Function to update record to mongo db
 def updatemongotest():
     try:
@@ -696,20 +714,21 @@ def updatemongotest():
             "$set": {
                 "ta_diary_year":'2019',
             }
+            
             }
         )
         print( "Records updated successfully")    
     
     except:
-        print( str(e))
+        raise
 
 def fetch_diary_case_details(court_code,diary_num,diary_year,hdn_sc_diary_num):
     diary_detail_url='https://sci.nic.in/php/case_status/case_status_process.php'
-    result= case_details_by_diary(diary_detail_url,headers,cookies,diary_num,diary_year)
+    result= case_details_by_diary(diary_detail_url,diary_num,diary_year)
     ## TO DO --when we organize the class the result should be taken care for every thread and if result is 200 then only it should call supporting details
     if result and result.status_code == 200:
         ta_master_court='sc'
-        initialize_diary_case_details(ta_master_court,diary_num,diary_year,ta_hdn_diary)
+        initialize_diary_case_details(ta_master_court,diary_num,diary_year,hdn_sc_diary_num)
     # handle if case does not exist 'case not found'
         soup=get_soup(result.content)
         case_dne=soup.body.findAll(text='Case Not Found')
@@ -739,7 +758,7 @@ def fetch_diary_case_details(court_code,diary_num,diary_year,hdn_sc_diary_num):
               #print(row[0], row[1])
             hdn_sc_diary_num=fetch_sc_hidden_internal_diary_num(soup)
             diary_results['ta_hdn_diary_num']=hdn_sc_diary_num
-            print (diary_results)
+            #print (diary_results)
             return 'success'
             #print(diary_results)
             #for key,val in diary_results.items():
@@ -751,42 +770,70 @@ def fetch_diary_case_details(court_code,diary_num,diary_year,hdn_sc_diary_num):
         print("BAD Response")
 
 
-court_code='sc'
-diary_num='123'
-diary_year='2018'
-ta_hdn_diary=prepare_sc_hidden_internal_diary_num(diary_num,diary_year)
-ret_code=fetch_diary_case_details(court_code,diary_num,diary_year,hdn_sc_diary_num)
-print (ret_code)
-if(ret_code is 'success'):
-    print('success in retriving the result insert it into mogodb')
-    try:
-        mdccasedetails=db.casedetail
-        Dboresult=mdccasedetails.insert_one(diary_results)
-        print('One casedetail: {0}'.format(Dboresult.inserted_id))
-    except:
-        print('mongo db error')
+#court_code='sc'
+#diary_num='123'
+#diary_year='2018'
+#ta_hdn_diary=prepare_sc_hidden_internal_diary_num(diary_num,diary_year)
+#ret_code=fetch_diary_case_details(court_code,diary_num,diary_year,hdn_sc_diary_num)
+#print (ret_code)
+#if(ret_code is 'success'):
+#    print('success in retriving the result insert it into mogodb')
+#    try:
+#        mdccasedetails=db.casedetail
+#        dboresult=mdccasedetails.insert_one(diary_results)
+#        print('one casedetail: {0}'.format(dboresult.inserted_id))
+#    except:
+#        print('mongo db error')
         
-else:
-    print('Fail --case details -retriving  ')
+#else:
+#    print('fail --case details -retriving  ')
+
+current_diary=1
+def scrap_casedetails_diary(court_code,diary_year,diary_start_num,diary_end_num):
+    #scrap test let us try scraping all case data for year 2018
+    mdccasedetails=db.casedetail
+    for diary_year in range(2018,2019):
+            for diary_num in range(diary_start_num,diary_end_num):
+                ta_hdn_diary=prepare_sc_hidden_internal_diary_num(str(diary_num),str(diary_year))
+                ret_code=fetch_diary_case_details(court_code,str(diary_num),str(diary_year),str(hdn_sc_diary_num))
+                print (diary_num)
+                if(ret_code is 'success'):
+                    print('success in retriving the result insert it into mogodb')
+                    try:
+                        if '_id' in diary_results: 
+                            del diary_results['_id'] 
+                        Dboresult=mdccasedetails.insert_one(diary_results)
+                        #print('One casedetail: {0}'.format(Dboresult.inserted_id))
+                    except Exception as e:
+                        logging.warning(e)
+                        raise
+                else:
+                    print('Fail --case details -retriving  for diary'+diary_num)
 
 
-
+court_code='sc'
+diary_year=2018
+diary_start_num=1
+diary_end_num=1000
+scrap_casedetails_diary(court_code,diary_year,diary_start_num,diary_end_num)
 Fetch_all_from_mongo()
-updatemongotest()
-Fetch_all_from_mongo()
+print(current_diary)
+#updatemongotest()
+#updatemanymongo()
+#Fetch_all_from_mongo()
 ######## gettting extended scripts for more details about diary
 
-##### getindexing details
-###ret_code=get_indexing_by_diary('sc',hdn_sc_diary_num,diary_year,hdn_sc_diary_num)
-##court_code='sc'
-##ret_code=get_EarlierCourtDetails_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
-##print('earlier court details'+ret_code)
-##print(diary_earl_court_details)
-##ret_code=get_TaggedMatter_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
-##print('tagged matter'+ret_code)
-##print(diary_results)
-##ret_code=get_ListingDates_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
-##print('listing details'+ret_code)
-##print(diary_results)
-##print(diary_listing_date)
+###### getindexing details
+####ret_code=get_indexing_by_diary('sc',hdn_sc_diary_num,diary_year,hdn_sc_diary_num)
+###court_code='sc'
+###ret_code=get_EarlierCourtDetails_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
+###print('earlier court details'+ret_code)
+###print(diary_earl_court_details)
+###ret_code=get_TaggedMatter_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
+###print('tagged matter'+ret_code)
+###print(diary_results)
+###ret_code=get_ListingDates_by_diary(court_code,diary_num,diary_year,hdn_sc_diary_num)
+###print('listing details'+ret_code)
+###print(diary_results)
+###print(diary_listing_date)
 
