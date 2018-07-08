@@ -24,6 +24,9 @@
     <Compile Include="displayboard_delhi_high_court.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ecourt_test.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="judgments.py">
       <SubType>Code</SubType>
     </Compile>

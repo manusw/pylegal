@@ -9,6 +9,7 @@ import pandas as pd
 import os
 import json
 import re
+import time
 import pymongo
 import pymongo
 from pymongo import MongoClient
@@ -648,7 +649,7 @@ def Fetch_all_from_mongo():
     except :
         raise
         ## find data 
-def case_details_by_diary(url,diary_num,diary_year):
+def case_details_by_diary(url,diary_num,diary_year,max_retry):
     cookies = {
         'has_js': '1',
         'PHPSESSID': '8j1pgblhj22d21rejvdinvehg1',
@@ -670,15 +671,27 @@ def case_details_by_diary(url,diary_num,diary_year):
       ('d_yr', diary_year),
     ]
     try:
-        res = requests.post('https://sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 30))
+        res = requests.post('https://sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 120))
         res.raise_for_status()
     except requests.HTTPError as e:
         logging.warning('SC case details non-200 status code')
         raise e
+    except ConnectionError as e:
+        logging.warning('connection error while retriving data')
+        raise e
+    except requests.exceptions.ConnectTimeout as e:
+        logging.warning('connection timeout error')
+        # manu try retry if connection timeout error
+        time.sleep(30)
+        max_retry=max_retry-1
+        if(max_retry >0):
+            logging.warning('going to retry ')
+            case_details_by_diary(url,diary_num,diary_year,max_retry)
+        else:
+            logging.warning('Max retry exceeeded')
+            raise e
     except requests.RequestException as e:
         logging.warning('Issue retrieving SC case details results page')
-        raise e
-    except ConnectionError as e:
         raise e
     else:
         return res
@@ -724,7 +737,7 @@ def updatemongotest():
 
 def fetch_diary_case_details(court_code,diary_num,diary_year,hdn_sc_diary_num):
     diary_detail_url='https://sci.nic.in/php/case_status/case_status_process.php'
-    result= case_details_by_diary(diary_detail_url,diary_num,diary_year)
+    result= case_details_by_diary(diary_detail_url,diary_num,diary_year,2)
     ## TO DO --when we organize the class the result should be taken care for every thread and if result is 200 then only it should call supporting details
     if result and result.status_code == 200:
         ta_master_court='sc'
@@ -808,13 +821,13 @@ def scrap_casedetails_diary(court_code,diary_year,diary_start_num,diary_end_num)
                         logging.warning(e)
                         raise
                 else:
-                    print('Fail --case details -retriving  for diary'+diary_num)
+                    print('Fail --case details -retriving  for diary'+str(diary_num))
 
 
 court_code='sc'
 diary_year=2018
-diary_start_num=1
-diary_end_num=1000
+diary_start_num=21009
+diary_end_num=24790
 scrap_casedetails_diary(court_code,diary_year,diary_start_num,diary_end_num)
 Fetch_all_from_mongo()
 print(current_diary)
