@@ -671,7 +671,11 @@ def case_details_by_diary(url,diary_num,diary_year,max_retry):
       ('d_yr', diary_year),
     ]
     try:
-        res = requests.post('https://sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 120))
+#manu sometimes https is down and does not works in that case use https://www.sc....
+#response = requests.post('https://www.sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 120))
+        res = requests.post('https://www.sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(5, 120))
+
+  #      res = requests.post('https://sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 120))
         res.raise_for_status()
     except requests.HTTPError as e:
         logging.warning('SC case details non-200 status code')
@@ -805,7 +809,7 @@ current_diary=1
 def scrap_casedetails_diary(court_code,diary_year,diary_start_num,diary_end_num):
     #scrap test let us try scraping all case data for year 2018
     mdccasedetails=db.casedetail
-    for diary_year in range(2018,2019):
+    for diary_year in range(2017,2018):
             for diary_num in range(diary_start_num,diary_end_num):
                 ta_hdn_diary=prepare_sc_hidden_internal_diary_num(str(diary_num),str(diary_year))
                 ret_code=fetch_diary_case_details(court_code,str(diary_num),str(diary_year),str(hdn_sc_diary_num))
@@ -825,9 +829,9 @@ def scrap_casedetails_diary(court_code,diary_year,diary_start_num,diary_end_num)
 
 
 court_code='sc'
-diary_year=2018
-diary_start_num=21009
-diary_end_num=24790
+diary_year=2017
+diary_start_num=8432
+diary_end_num=20000
 scrap_casedetails_diary(court_code,diary_year,diary_start_num,diary_end_num)
 Fetch_all_from_mongo()
 print(current_diary)

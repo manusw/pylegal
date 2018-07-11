@@ -8,7 +8,7 @@ import requests
 import pandas as pd
 import os
 import json
-import pymongo
+import pymongof
 from pymongo import MongoClient
 #manu mongodb testing code 
 client = MongoClient('mongodb://localhost:27017')
