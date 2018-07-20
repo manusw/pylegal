@@ -1,0 +1,25 @@
+.main-nav{
+    background-color: #942bae !important;
+    position: fixed !important;
+    z-index: 9999;
+}
+
+.nav-logo{
+
+}
+
+.nav-logo-txt{
+    color:#ffffff;
+}
+
+.nav-menu{
+
+}
+
+.nav-menu>li{
+
+}
+
+.nav-menu>li>a{
+    color:#ffffff !important;
+}

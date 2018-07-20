@@ -8,11 +8,12 @@ import requests
 import pandas as pd
 import os
 import json
-import pymongof
+import pymongo
 from pymongo import MongoClient
 #manu mongodb testing code 
+#manu mongodb testing code 
 client = MongoClient('mongodb://localhost:27017')
-db = client.pymongo_wtltest
+db = client.mongo_scdetails
 
 def initialize_earl_court_dict(ta_master_court,ta_diary_num,ta_diary_year):
     diary_earl_court_details['ta_master_court'] =ta_master_court
@@ -55,7 +56,7 @@ data = [
   ('diaryno', d_num),
 ]
 
-response = requests.post('https://sci.nic.in/php/case_status/get_earlier_court.php', headers=headers, cookies=cookies, data=data,verify=False)
+response = requests.post('https://www.sci.nic.in/php/case_status/get_earlier_court.php', headers=headers, cookies=cookies, data=data,verify=False)
 print(response.content)
 case_details_pd=pd.read_html(response.content,header=0)
 print(case_details_pd)
@@ -85,3 +86,28 @@ diary_results['earl_court_details']=table_contents
 diary_earl_court_details['earl_court_details']=table_contents
 
 print(diary_results)
+# Function to update record to mongo db
+def updatemongotest():
+    try:
+        criteria = '123'
+        ta_diary_year = '2017'
+        
+        db.casedetail.update_one(
+            {"ta_diary_num": criteria},
+            {
+            "$set": {
+                "ta_diary_year":'2019',
+            }
+            
+            }
+        )
+        print( "Records updated successfully")    
+    
+    except:
+        raise
+earlcourt=db.earlcourt
+Dboresult=earlcourt.insert_one(diary_results)
+mdccasedetails=db.earlcourt.find()
+print ('\n All data from case Database \n')
+for cd in mdccasedetails:
+    print( cd)

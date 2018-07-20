@@ -1,18 +1,7 @@
-import logging
-import csv
-from selenium import webdriver
-from urllib.parse import urldefrag, urljoin
-from collections import deque
-from bs4 import BeautifulSoup
 import requests
-import pandas as pd
-import os
-import json
-import pymongo
-
 
 cookies = {
-    'PHPSESSID': 'lcp5jrvo4pjab8mkmafn7h1i45',
+    'PHPSESSID': '85k041a83hlh8mfcklua26m500',
 }
 
 headers = {
@@ -26,19 +15,35 @@ headers = {
 }
 
 params = (
-    ('case_no', '203601009012015'),
-    ('state_cd', '1'),
-    ('dist_cd', '19'),
+    ('state_code', '1'),
+    ('dist_code', '19'),
     ('court_code', '4'),
-    ('appFlag', ''),
+    ('caseStatusSearchType', 'CNRNumber'),
+    ('cino', 'MHAU010000092015'),
     ('national_court_code', 'MHAU01'),
-    ('court_complex_code', ''),
-    ('cino', 'MHAU010000112015'),
 )
 
-response = requests.get('https://services.ecourts.gov.in/ecourtindia_v5.1/cases_qry/o_civil_case_history.php', headers=headers, params=params, cookies=cookies)
-print(response)
+response = requests.get('https://services.ecourts.gov.in/ecourtindia_v5.1/cases_qry/o_filing_case_history.php', headers=headers, params=params, cookies=cookies,verify=False,timeout=(10, 130))
+
 #NB. Original query string below. It seems impossible to parse and
 #reproduce query strings 100% accurately so the one below is given
 #in case the reproduced version is not "correct".
-# response = requests.get('https://services.ecourts.gov.in/ecourtindia_v5.1/cases_qry/o_civil_case_history.php?case_no=203601009012015^&state_cd=1^&dist_cd=19^&court_code=4^&appFlag=^&national_court_code=MHAU01^&court_complex_code=^&cino=MHAU010000012015', headers=headers, cookies=cookies)
+# response = requests.get('https://services.ecourts.gov.in/ecourtindia_v5.1/cases_qry/o_filing_case_history.php?state_code=1^&dist_code=19^&court_code=4^&caseStatusSearchType=CNRNumber^&cino=MHAU010000092015^&national_court_code=MHAU01', headers=headers, cookies=cookies)
+
+#params = (
+#    ('case_no', '201901000022015'),
+#    ('state_cd', '1'),
+#    ('dist_cd', '19'),
+#    ('court_code', '4'),
+#    ('appFlag', ''),
+#    ('national_court_code', 'MHAU01'),
+#    ('court_complex_code', ''),
+#    ('cino', 'MHAU010000092015'),
+#)
+
+#response = requests.get('https://services.ecourts.gov.in/ecourtindia_v5.1/cases_qry/o_civil_case_history.php', headers=headers, params=params, cookies=cookies,verify=False,timeout=(10, 130))
+print(response.content)
+#NB. Original query string below. It seems impossible to parse and
+#reproduce query strings 100% accurately so the one below is given
+#in case the reproduced version is not "correct".
+# response = requests.get('https://services.ecourts.gov.in/ecourtindia_v5.1/cases_qry/o_civil_case_history.php?case_no=201901000022015^&state_cd=1^&dist_cd=19^&court_code=4^&appFlag=^&national_court_code=MHAU01^&court_complex_code=^&cino=MHAU010000092015', headers=headers, cookies=cookies)

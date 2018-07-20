@@ -17,6 +17,7 @@ from pymongo import MongoClient
 client = MongoClient('mongodb://localhost:27017')
 db = client.mongo_scdetails
 
+
 output_file='casediary.csv'
 diary_results={}
 diary_earl_court_details={}
@@ -673,7 +674,7 @@ def case_details_by_diary(url,diary_num,diary_year,max_retry):
     try:
 #manu sometimes https is down and does not works in that case use https://www.sc....
 #response = requests.post('https://www.sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 120))
-        res = requests.post('https://www.sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(5, 120))
+        res = requests.post('https://www.sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(8, 120))
 
   #      res = requests.post('https://sci.nic.in/php/case_status/case_status_process.php', headers=headers, cookies=cookies, data=data,verify=False,timeout=(3, 120))
         res.raise_for_status()
@@ -829,9 +830,19 @@ def scrap_casedetails_diary(court_code,diary_year,diary_start_num,diary_end_num)
 
 
 court_code='sc'
+#fetch the last diary number and year from the database and apply it here
+try:    
+    lastrecord=db.casedetail.find({},{'ta_hdn_diary_num':1,'ta_diary_num': 1,'ta_diary_year': 1,'_id': 0}).sort('_id',pymongo.DESCENDING).limit(1)
+except:
+    raise
+
 diary_year=2017
-diary_start_num=8432
-diary_end_num=20000
+diary_start_num=21963
+diary_end_num=42643
+for item in lastrecord:
+    diary_year=int (item['ta_diary_year'])
+    diary_start_num = int(item['ta_diary_num']) +1
+
 scrap_casedetails_diary(court_code,diary_year,diary_start_num,diary_end_num)
 Fetch_all_from_mongo()
 print(current_diary)

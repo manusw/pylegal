@@ -34,6 +34,9 @@
     <Compile Include="module2.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Mongo_command_test.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="sc_case_details_by_diary.py">
       <SubType>Code</SubType>
     </Compile>
@@ -66,6 +69,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="test_sc_scripts.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="user_case_history_test.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
